@@ -1,6 +1,6 @@
 <div class="game-wrapper">
 
-  <!-- Title bar -->
+
   <div class="title-bar">
     <span class="title-text">🌿 Pokemon Forest Run</span>
     <div class="pokemon-selector">
@@ -12,7 +12,7 @@
     <div class="hiscore">Best: {{ highScore() }}</div>
   </div>
 
-  <!-- Canvas -->
+
   <div class="canvas-container">
     <canvas
       #gameCanvas
@@ -30,13 +30,13 @@
 
   <p class="controls-hint">Double-jump supported — press SPACE twice mid-air!</p>
 
-  <!-- CRUD Panel -->
+
   <div class="crud-panel">
     <h2 class="panel-title">
       My Pokemon Team <span class="badge">MongoDB</span>
     </h2>
 
-    <!-- Form -->
+
     <div class="form-card">
       <h3>{{ editingId() ? 'Edit Pokemon' : 'Add to Team' }}</h3>
       <div class="form-row">
@@ -56,7 +56,6 @@
       <p class="crud-message" *ngIf="crudMessage()">{{ crudMessage() }}</p>
     </div>
 
-    <!-- Roster list -->
     <div class="roster" *ngIf="rosterList().length > 0; else emptyRoster">
       <div class="roster-card" *ngFor="let p of rosterList()">
 

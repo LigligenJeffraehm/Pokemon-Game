@@ -30,7 +30,7 @@ export class GameComponent implements OnInit, AfterViewInit, OnDestroy {
  
   private pokemonService = inject(PokemonService);
  
-  // ── Game state ──────────────────────────────────────────────────────────────
+
   score = signal(0);
   highScore = signal(0);
   gameOver = signal(false);
