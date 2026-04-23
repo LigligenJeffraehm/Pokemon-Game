@@ -1,0 +1,96 @@
+<div class="game-wrapper">
+
+  <!-- Title bar -->
+  <div class="title-bar">
+    <span class="title-text">🌿 Pokemon Forest Run</span>
+    <div class="pokemon-selector">
+      <label>Your Pokemon:</label>
+      <select (change)="changePlayerPokemon($any($event.target).value)">
+        <option *ngFor="let p of availablePokemons" [value]="p">{{ p | titlecase }}</option>
+      </select>
+    </div>
+    <div class="hiscore">Best: {{ highScore() }}</div>
+  </div>
+
+  <!-- Canvas -->
+  <div class="canvas-container">
+    <canvas
+      #gameCanvas
+      [width]="800"
+      [height]="300"
+      (click)="onCanvasTap()"
+      class="game-canvas"
+    ></canvas>
+
+    <div class="canvas-hint" *ngIf="!gameStarted() || gameOver()">
+      <span *ngIf="!gameStarted()">Press <kbd>SPACE</kbd> or tap to start</span>
+      <span *ngIf="gameOver()">Press <kbd>SPACE</kbd> or tap to restart</span>
+    </div>
+  </div>
+
+  <p class="controls-hint">Double-jump supported — press SPACE twice mid-air!</p>
+
+  <!-- CRUD Panel -->
+  <div class="crud-panel">
+    <h2 class="panel-title">
+      My Pokemon Team <span class="badge">MongoDB</span>
+    </h2>
+
+    <!-- Form -->
+    <div class="form-card">
+      <h3>{{ editingId() ? 'Edit Pokemon' : 'Add to Team' }}</h3>
+      <div class="form-row">
+        <input [(ngModel)]="formData.name"   placeholder="Name (e.g. Pikachu)" />
+        <input [(ngModel)]="formData.type"   placeholder="Type (e.g. Electric)" />
+        <input [(ngModel)]="formData.level"  type="number" min="1" max="100" placeholder="Level" />
+        <input [(ngModel)]="formData.nature" placeholder="Nature (e.g. Jolly)" />
+      </div>
+      <div class="form-actions">
+        <button class="btn-primary" (click)="submitForm()">
+          {{ editingId() ? 'Update' : 'Add Pokemon' }}
+        </button>
+        <button class="btn-ghost" *ngIf="editingId()" (click)="cancelEdit()">
+          Cancel
+        </button>
+      </div>
+      <p class="crud-message" *ngIf="crudMessage()">{{ crudMessage() }}</p>
+    </div>
+
+    <!-- Roster list -->
+    <div class="roster" *ngIf="rosterList().length > 0; else emptyRoster">
+      <div class="roster-card" *ngFor="let p of rosterList()">
+
+        <div class="poke-sprite-wrap">
+          <img
+            [src]="'https://img.pokemondb.net/sprites/sword-shield/icon/' + p.name.toLowerCase() + '.png'"
+            [alt]="p.name"
+            class="poke-icon"
+            onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png'"
+          />
+        </div>
+
+        <div class="poke-info">
+          <span class="poke-name">{{ p.name }}</span>
+          <span class="poke-type type-badge">{{ p.type }}</span>
+        </div>
+
+        <div class="poke-meta">
+          <span>Lv.{{ p.level }}</span>
+          <span class="nature">{{ p.nature }}</span>
+        </div>
+
+        <div class="poke-actions">
+          <button class="btn-edit"   (click)="editPokemon(p)">Edit</button>
+          <button class="btn-delete" (click)="deletePokemon(p._id!, p.name)">Release</button>
+        </div>
+
+      </div>
+    </div>
+
+    <ng-template #emptyRoster>
+      <p class="empty-msg">No pokemon in your team yet. Add one above!</p>
+    </ng-template>
+
+  </div>
+
+</div>
