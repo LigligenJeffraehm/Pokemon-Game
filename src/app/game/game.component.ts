@@ -1,513 +1,537 @@
-
-import { Component,OnInit,OnDestroy,AfterViewInit,ElementRef,ViewChild,inject,signal, } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+// game.component.ts
+import { Component, OnInit, OnDestroy, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { PokemonService } from '../pokemon.service';
-import { Pokemon } from '../pokemon.model';
+import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
+import { PokemonService, Pokemon, Score } from '../pokemon.service';
 
-interface Obstacle {
+interface GameObstacle {
+  id: number;
   x: number;
-  y: number;
-  width: number;
-  height: number;
-  img: HTMLImageElement;
+  row: number;
+  type: string;
+  icon: string;
 }
- 
-interface Cloud {
-  x: number;
-  y: number;
-  speed: number;
+
+interface GamePokemon {
+  id: string;
+  name: string;
+  type: string;
+  level: number;
+  nature: string;
+  imageUrl: string;
+  row: number;
+  isActive: boolean;
 }
+
 @Component({
   selector: 'app-game',
+  standalone: true,
   imports: [CommonModule, FormsModule],
-  standalone:true,
   templateUrl: './game.component.html',
   styleUrl: './game.component.css'
 })
-export class GameComponent implements OnInit, AfterViewInit, OnDestroy {
-  @ViewChild('gameCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
- 
-  private pokemonService = inject(PokemonService);
- 
-
+export class GameComponent implements OnInit, OnDestroy {
+  private http = inject(HttpClient);
+  pokemonService = inject(PokemonService);
+  
+  // Authentication
+  showLogin = signal(true);
+  loginUsername = signal('');
+  loginPassword = signal('');
+  registerUsername = signal('');
+  registerPassword = signal('');
+  authError = signal('');
+  
+  // Game state
+  gameRunning = signal(false);
+  gameLoop: any;
   score = signal(0);
-  highScore = signal(0);
+  level = signal(1);
+  
+  // 3 Rows for running
+  rows = [0, 1, 2];
+  activePokemon = signal<GamePokemon | null>(null);
+  pokemonRow = signal(1); // Middle row initially
+  
+  // Pokemon queue (lineup)
+  pokemonQueue = signal<GamePokemon[]>([]);
+  
+  // Obstacles
+  obstacles = signal<GameObstacle[]>([]);
+  obstacleSpeed = 3;
+  obstacleSpawnRate = 80;
+  frameCount = 0;
+  
+  // Row switching cooldown
+  canSwitchRow = signal(true);
+  switchCooldown = 300; // ms
+  
+  // Catch mechanics
+  showCatchPrompt = signal(false);
+  wildPokemon: any = null;
+  catchTimer: any;
+  timeLeft = signal(15);
+  pokemonNameInput = signal('');
+  catchInProgress = signal(false);
   gameOver = signal(false);
-  gameStarted = signal(false);
- 
-  private ctx!: CanvasRenderingContext2D;
-  private animId = 0;
-  private frameCount = 0;
-
-  readonly W = 800;
-  readonly H = 300;
-  readonly GROUND = 220;
- 
- 
-  private player = {
-    x: 80,
-    y: this.GROUND,
-    vy: 0,
-    width: 56,
-    height: 56,
-    jumping: false,
-    doubleJumped: false,
-    frame: 0,
-    frameTimer: 0,
-  };
-  private readonly GRAVITY = 0.6;
-  private readonly JUMP_FORCE = -13;
- 
-
-  private playerImg: HTMLImageElement | null = null;
-  private obstacleImgs: HTMLImageElement[] = [];
-  private obstaclePool = [
-    'oddish', 'geodude', 'voltorb', 'shellder', 'gastly',
-    'ekans', 'paras', 'sandshrew', 'bellsprout', 'caterpie',
+  isLoadingPokemon = signal(false);
+  
+  // Messages
+  deathMessage = signal('');
+  switchMessage = signal('');
+  levelUpMessage = signal('');
+  
+  // Available Pokemon to catch
+  availablePokemon = [
+    { name: 'Pikachu', type: 'Electric', natureList: ['Jolly', 'Timid', 'Naive'], icon: '⚡' },
+    { name: 'Charmander', type: 'Fire', natureList: ['Brave', 'Adamant', 'Lonely'], icon: '🔥' },
+    { name: 'Squirtle', type: 'Water', natureList: ['Calm', 'Relaxed', 'Bold'], icon: '💧' },
+    { name: 'Bulbasaur', type: 'Grass', natureList: ['Gentle', 'Careful', 'Docile'], icon: '🌿' },
+    { name: 'Jigglypuff', type: 'Normal', natureList: ['Sassy', 'Quiet', 'Serious'], icon: '🎵' },
+    { name: 'Meowth', type: 'Normal', natureList: ['Jolly', 'Hasty', 'Naive'], icon: '💰' },
+    { name: 'Psyduck', type: 'Water', natureList: ['Sassy', 'Modest', 'Quirky'], icon: '🦆' },
+    { name: 'Growlithe', type: 'Fire', natureList: ['Adamant', 'Impish', 'Lax'], icon: '🐕' },
+    { name: 'Eevee', type: 'Normal', natureList: ['Timid', 'Bold', 'Calm'], icon: '🦊' },
+    { name: 'Snorlax', type: 'Normal', natureList: ['Adamant', 'Impish', 'Careful'], icon: '😴' }
   ];
- 
-
-  private bgX = 0;
-  private bgSpeed = 3;
-  private clouds: Cloud[] = [];
- 
-
-  private obstacles: Obstacle[] = [];
-  private obstacleTimer = 0;
-  private obstacleInterval = 90;
- 
-
-  private groundY = this.GROUND + 56;
- 
   
-  rosterList = signal<Pokemon[]>([]);
-  formData: Omit<Pokemon, '_id'> = { name: '', type: '', level: 1, nature: '' };
-  editingId = signal<string | null>(null);
-  crudMessage = signal('');
- 
-
-  selectedPokemon = signal('pikachu');
-  availablePokemons = [
-    'pikachu', 'bulbasaur', 'charmander', 'squirtle',
-    'eevee', 'jigglypuff', 'psyduck', 'meowth',
-  ];
- 
+  ngOnInit() {
+    // Check for saved user
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+      const user = JSON.parse(savedUser);
+      this.pokemonService.currentUser.set(user);
+      this.pokemonService.isLoggedIn.set(true);
+      this.showLogin.set(false);
+      this.loadUserData();
+    }
+  }
   
-  ngOnInit(): void {
-    this.loadRoster();
-    this.preloadObstacleSprites();
+  loadUserData() {
+    const userId = this.pokemonService.currentUser()?._id;
+    if (userId) {
+      this.pokemonService.fetchPokemon(userId);
+      this.initializePokemonTeam();
+    }
   }
- 
-  ngAfterViewInit(): void {
-    const canvas = this.canvasRef.nativeElement;
-    this.ctx = canvas.getContext('2d')!;
-    this.loadPlayerSprite(this.selectedPokemon());
-    this.initClouds();
-    this.drawIdleScreen();
-    this.setupInput();
-  }
- 
-  ngOnDestroy(): void {
-    cancelAnimationFrame(this.animId);
-    window.removeEventListener('keydown', this.handleKey);
-  }
- 
   
-  private handleKey = (e: KeyboardEvent) => {
-    if (e.code === 'Space' || e.code === 'ArrowUp') {
-      e.preventDefault();
-      this.doJump();
-    }
-  };
- 
-  setupInput(): void {
-    window.addEventListener('keydown', this.handleKey);
+  initializePokemonTeam() {
+    // Start with Pikachu
+    const starterPokemon: GamePokemon = {
+      id: 'starter',
+      name: 'Pikachu',
+      type: 'Electric',
+      level: 5,
+      nature: 'Jolly',
+      imageUrl: '',
+      row: 1,
+      isActive: true
+    };
+    
+    this.pokemonQueue.set([starterPokemon]);
+    this.activePokemon.set(starterPokemon);
+    this.fetchPokemonImage('pikachu', starterPokemon);
   }
- 
-  onCanvasTap(): void {
-    this.doJump();
-  }
- 
-  private doJump(): void {
-    if (!this.gameStarted()) {
-      this.startGame();
-      return;
-    }
-    if (this.gameOver()) {
-      this.restartGame();
-      return;
-    }
-    if (!this.player.jumping) {
-      this.player.vy = this.JUMP_FORCE;
-      this.player.jumping = true;
-      this.player.doubleJumped = false;
-    } else if (!this.player.doubleJumped) {
-      this.player.vy = this.JUMP_FORCE * 0.85;
-      this.player.doubleJumped = true;
-    }
-  }
- 
- 
-  private loadPlayerSprite(name: string): void {
-    const img = new Image();
-    img.src = `https://img.pokemondb.net/sprites/black-white/anim/normal/${name}.gif`;
-    img.onload = () => { this.playerImg = img; };
-    img.onerror = () => {
+  
+  async fetchPokemonImage(pokemonName: string, gamePokemon: GamePokemon) {
+    try {
+      const imageUrl = await this.getPokemonImage(pokemonName);
+      gamePokemon.imageUrl = imageUrl;
+      this.activePokemon.set({ ...gamePokemon });
       
-      const fallback = new Image();
-      fallback.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${this.getPokemonId(name)}.png`;
-      fallback.onload = () => { this.playerImg = fallback; };
-    };
+      // Update queue
+      const updatedQueue = this.pokemonQueue().map(p => 
+        p.id === gamePokemon.id ? { ...p, imageUrl } : p
+      );
+      this.pokemonQueue.set(updatedQueue);
+    } catch (error) {
+      console.error('Error fetching image:', error);
+    }
   }
- 
-  private getPokemonId(name: string): number {
-    const ids: Record<string, number> = {
-      pikachu: 25, bulbasaur: 1, charmander: 4, squirtle: 7,
-      eevee: 133, jigglypuff: 39, psyduck: 54, meowth: 52,
-    };
-    return ids[name] ?? 25;
-  }
- 
-  private preloadObstacleSprites(): void {
-    this.obstaclePool.forEach((name) => {
-      const img = new Image();
-      img.src = `https://img.pokemondb.net/sprites/black-white/anim/normal/${name}.gif`;
-      img.onerror = () => {
-        const fallback = new Image();
-        fallback.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${this.getPokemonObstacleId(name)}.png`;
-        this.obstacleImgs.push(fallback);
-        return;
-      };
-      img.onload = () => this.obstacleImgs.push(img);
+  
+  getPokemonImage(pokemonName: string): Promise<string> {
+    return new Promise((resolve) => {
+      this.http.get(`https://pokeapi.co/api/v2/pokemon/${pokemonName.toLowerCase()}`)
+        .subscribe({
+          next: (data: any) => {
+            const imageUrl = data.sprites.other['official-artwork'].front_default || 
+                            data.sprites.front_default;
+            resolve(imageUrl);
+          },
+          error: () => resolve('')
+        });
     });
   }
- 
-  private getPokemonObstacleId(name: string): number {
-    const ids: Record<string, number> = {
-      oddish: 43, geodude: 74, voltorb: 100, shellder: 90, gastly: 92,
-      ekans: 23, paras: 46, sandshrew: 27, bellsprout: 69, caterpie: 10,
-    };
-    return ids[name] ?? 100;
-  }
- 
   
-  startGame(): void {
-    this.gameStarted.set(true);
+  @HostListener('document:keydown', ['$event'])
+  handleKeyboard(event: KeyboardEvent) {
+    if (!this.gameRunning() || this.catchInProgress() || this.showCatchPrompt()) return;
+    
+    switch(event.key) {
+      case 'ArrowUp':
+        event.preventDefault();
+        this.moveRow(-1);
+        break;
+      case 'ArrowDown':
+        event.preventDefault();
+        this.moveRow(1);
+        break;
+      case ' ':
+      case 'Space':
+        event.preventDefault();
+        // Space can be used for special ability if needed
+        break;
+    }
+  }
+  
+  moveRow(direction: number) {
+    if (!this.canSwitchRow()) return;
+    
+    const newRow = this.pokemonRow() + direction;
+    if (newRow >= 0 && newRow <= 2) {
+      this.pokemonRow.set(newRow);
+      this.canSwitchRow.set(false);
+      
+      // Show switch message
+      this.switchMessage.set(`Moving to ${newRow === 0 ? 'Top' : newRow === 1 ? 'Middle' : 'Bottom'} row!`);
+      setTimeout(() => this.switchMessage.set(''), 500);
+      
+      setTimeout(() => {
+        this.canSwitchRow.set(true);
+      }, this.switchCooldown);
+    }
+  }
+  
+  startGame() {
+    this.gameRunning.set(true);
     this.gameOver.set(false);
     this.score.set(0);
-    this.obstacles = [];
-    this.player.y = this.GROUND;
-    this.player.vy = 0;
-    this.player.jumping = false;
-    this.bgSpeed = 3;
-    this.obstacleInterval = 90;
+    this.level.set(1);
+    this.obstacles.set([]);
+    this.obstacleSpeed = 3;
+    this.obstacleSpawnRate = 80;
     this.frameCount = 0;
-    this.loop();
+    this.pokemonRow.set(1);
+    
+    this.gameLoop = requestAnimationFrame(() => this.updateGame());
   }
- 
-  restartGame(): void {
-    cancelAnimationFrame(this.animId);
+  
+  updateGame() {
+    if (!this.gameRunning()) return;
+    
+    // Update obstacles
+    this.updateObstacles();
+    
+    // Spawn obstacles
+    this.spawnObstacles();
+    
+    // Check collisions
+    this.checkCollisions();
+    
+    // Update score
+    this.score.update(s => s + 1);
+    
+    // Level up every 1000 points
+    const newLevel = Math.floor(this.score() / 1000) + 1;
+    if (newLevel > this.level()) {
+      this.levelUp();
+    }
+    
+    // Increase difficulty over time
+    this.obstacleSpeed = 3 + Math.floor(this.score() / 2000);
+    this.obstacleSpawnRate = Math.max(50, 80 - Math.floor(this.score() / 500));
+    
+    this.gameLoop = requestAnimationFrame(() => this.updateGame());
+  }
+  
+  updateObstacles() {
+    const updatedObstacles = this.obstacles()
+      .map(obs => ({ ...obs, x: obs.x - this.obstacleSpeed }))
+      .filter(obs => obs.x > -50);
+    
+    this.obstacles.set(updatedObstacles);
+  }
+  
+  spawnObstacles() {
+    this.frameCount++;
+    if (this.frameCount >= this.obstacleSpawnRate) {
+      const row = Math.floor(Math.random() * 3);
+      const obstacleTypes = [
+        { type: 'fire', icon: '🔥' },
+        { type: 'rock', icon: '🪨' },
+        { type: 'water', icon: '💧' },
+        { type: 'thorn', icon: '🌵' }
+      ];
+      const randomType = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+      
+      const obstacle: GameObstacle = {
+        id: Date.now(),
+        x: 800,
+        row: row,
+        type: randomType.type,
+        icon: randomType.icon
+      };
+      
+      this.obstacles.update(obs => [...obs, obstacle]);
+      this.frameCount = 0;
+    }
+  }
+  
+  checkCollisions() {
+    const currentRow = this.pokemonRow();
+    const collisionObstacles = this.obstacles().filter(obs => obs.row === currentRow);
+    
+    for (const obstacle of collisionObstacles) {
+      // Check if obstacle is near the player (player at x=100)
+      if (obstacle.x < 150 && obstacle.x > 50) {
+        this.pokemonHit();
+        break;
+      }
+    }
+  }
+  
+  pokemonHit() {
+    const activePoke = this.activePokemon();
+    if (!activePoke) return;
+    
+    this.gameRunning.set(false);
+    
+    // Remove from MongoDB if not starter
+    if (activePoke.id !== 'starter') {
+      this.pokemonService.deletePokemon(activePoke.id).subscribe();
+    }
+    
+    this.deathMessage.set(`💀 ${activePoke.name} fainted! 💀`);
+    setTimeout(() => this.deathMessage.set(''), 1500);
+    
+    // Remove from queue
+    const updatedQueue = this.pokemonQueue().filter(p => p.id !== activePoke.id);
+    
+    if (updatedQueue.length > 0) {
+      // Switch to next Pokemon
+      const nextPokemon = { ...updatedQueue[0], isActive: true, row: 1 };
+      this.pokemonQueue.set(updatedQueue);
+      this.activePokemon.set(nextPokemon);
+      this.pokemonRow.set(1);
+      
+      setTimeout(() => {
+        this.gameRunning.set(true);
+        this.gameLoop = requestAnimationFrame(() => this.updateGame());
+      }, 1500);
+    } else {
+      // Game Over - Save score
+      this.endGame();
+    }
+  }
+  
+  async levelUp() {
+    this.level.update(l => l + 1);
+    this.levelUpMessage.set(`🎉 Level ${this.level()}! A wild Pokemon appears! 🎉`);
+    setTimeout(() => this.levelUpMessage.set(''), 2000);
+    
+    // Pause game for encounter
+    this.gameRunning.set(false);
+    await this.encounterPokemon();
+  }
+  
+  async encounterPokemon() {
+    this.catchInProgress.set(true);
+    this.isLoadingPokemon.set(true);
+    
+    const randomIndex = Math.floor(Math.random() * this.availablePokemon.length);
+    const pokemonRef = this.availablePokemon[randomIndex];
+    const randomNature = pokemonRef.natureList[Math.floor(Math.random() * pokemonRef.natureList.length)];
+    
+    try {
+      const imageUrl = await this.getPokemonImage(pokemonRef.name);
+      
+      this.wildPokemon = {
+        name: pokemonRef.name,
+        type: pokemonRef.type,
+        nature: randomNature,
+        level: this.level(),
+        imageUrl: imageUrl,
+        icon: pokemonRef.icon
+      };
+      
+      this.isLoadingPokemon.set(false);
+      this.showCatchPrompt.set(true);
+    } catch (error) {
+      this.isLoadingPokemon.set(false);
+      this.resumeGame();
+    }
+  }
+  
+  runAway() {
+    this.showCatchPrompt.set(false);
+    this.resumeGame();
+  }
+  
+  attemptCatch() {
+    this.showCatchPrompt.set(false);
+    this.startNameTimer();
+  }
+  
+  startNameTimer() {
+    this.timeLeft.set(15);
+    this.pokemonNameInput.set('');
+    
+    this.catchTimer = setInterval(() => {
+      this.timeLeft.update(t => t - 1);
+      
+      if (this.timeLeft() <= 0) {
+        clearInterval(this.catchTimer);
+        this.catchFailed();
+      }
+    }, 1000);
+  }
+  
+  submitPokemonName() {
+    if (!this.wildPokemon) return;
+    
+    clearInterval(this.catchTimer);
+    
+    if (this.pokemonNameInput().toLowerCase() === this.wildPokemon.name.toLowerCase()) {
+      this.catchSuccess();
+    } else {
+      this.catchFailed();
+    }
+  }
+  
+  catchSuccess() {
+    if (!this.wildPokemon) return;
+    
+    const userId = this.pokemonService.currentUser()?._id;
+    if (!userId) return;
+    
+    const newPokemon: Omit<Pokemon, '_id'> = {
+      name: this.wildPokemon.name,
+      type: this.wildPokemon.type,
+      level: this.wildPokemon.level,
+      nature: this.wildPokemon.nature,
+      userId: userId
+    };
+    
+    this.pokemonService.savePokemon(newPokemon).subscribe({
+      next: (savedPokemon) => {
+        // Add to game queue
+        const gamePokemon: GamePokemon = {
+          id: savedPokemon._id!,
+          name: savedPokemon.name,
+          type: savedPokemon.type,
+          level: savedPokemon.level,
+          nature: savedPokemon.nature,
+          imageUrl: this.wildPokemon.imageUrl,
+          row: 1,
+          isActive: false
+        };
+        
+        this.pokemonQueue.update(queue => [...queue, gamePokemon]);
+        alert(`🎉 Success! ${this.wildPokemon.name} was added to your team! 🎉`);
+        this.resumeGame();
+      },
+      error: () => {
+        alert('Failed to save Pokemon');
+        this.resumeGame();
+      }
+    });
+  }
+  
+  catchFailed() {
+    alert(`❌ ${this.wildPokemon?.name} escaped! ❌`);
+    this.resumeGame();
+  }
+  
+  resumeGame() {
+    this.catchInProgress.set(false);
+    this.wildPokemon = null;
+    this.pokemonNameInput.set('');
+    this.timeLeft.set(15);
+    
+    if (this.catchTimer) {
+      clearInterval(this.catchTimer);
+    }
+    
+    if (!this.gameOver()) {
+      this.gameRunning.set(true);
+      this.gameLoop = requestAnimationFrame(() => this.updateGame());
+    }
+  }
+  
+  endGame() {
+    this.gameRunning.set(false);
+    this.gameOver.set(true);
+    
+    // Save score to leaderboard
+    const userId = this.pokemonService.currentUser()?._id;
+    const username = this.pokemonService.currentUser()?.username;
+    
+    if (userId && username) {
+      const scoreData: Score = {
+        userId: userId,
+        username: username,
+        score: this.score(),
+        level: this.level()
+      };
+      
+      this.pokemonService.saveScore(scoreData).subscribe();
+      this.pokemonService.fetchLeaderboard();
+    }
+  }
+  
+  resetGame() {
+    this.initializePokemonTeam();
     this.startGame();
   }
- 
-  private loop(): void {
-    this.animId = requestAnimationFrame(() => this.loop());
-    this.update();
-    this.draw();
-    this.frameCount++;
-  }
- 
-  private update(): void {
-
-    this.score.update((s) => s + 1);
-    if (this.score() % 300 === 0) {
-      this.bgSpeed = Math.min(this.bgSpeed + 0.5, 10);
-      this.obstacleInterval = Math.max(this.obstacleInterval - 5, 45);
+  
+  login() {
+    if (!this.loginUsername() || !this.loginPassword()) {
+      this.authError.set('Please enter username and password');
+      return;
     }
- 
-
-    this.player.vy += this.GRAVITY;
-    this.player.y += this.player.vy;
-    if (this.player.y >= this.GROUND) {
-      this.player.y = this.GROUND;
-      this.player.vy = 0;
-      this.player.jumping = false;
-      this.player.doubleJumped = false;
-    }
- 
-
-    this.obstacleTimer++;
-    if (this.obstacleTimer >= this.obstacleInterval) {
-      this.spawnObstacle();
-      this.obstacleTimer = 0;
-    }
-    for (const obs of this.obstacles) {
-      obs.x -= this.bgSpeed;
-    }
-    this.obstacles = this.obstacles.filter((o) => o.x > -100);
- 
-
-    for (const c of this.clouds) {
-      c.x -= c.speed;
-      if (c.x < -100) c.x = this.W + 100;
-    }
- 
-
-    this.bgX -= this.bgSpeed * 0.5;
-    if (this.bgX <= -this.W) this.bgX = 0;
- 
-
-    for (const obs of this.obstacles) {
-      if (this.checkCollision(obs)) {
-        this.endGame();
-        return;
-      }
-    }
-  }
- 
-  private spawnObstacle(): void {
-    if (this.obstacleImgs.length === 0) return;
-    const img = this.obstacleImgs[Math.floor(Math.random() * this.obstacleImgs.length)];
-    const size = 40 + Math.random() * 24;
-    this.obstacles.push({
-      x: this.W + 10,
-      y: this.GROUND + (56 - size),
-      width: size,
-      height: size,
-      img,
-    });
-  }
- 
-  private checkCollision(obs: Obstacle): boolean {
-    const pad = 10;
-    const px = this.player.x + pad;
-    const py = this.player.y + pad;
-    const pw = this.player.width - pad * 2;
-    const ph = this.player.height - pad * 2;
-    return (
-      px < obs.x + obs.width - pad &&
-      px + pw > obs.x + pad &&
-      py < obs.y + obs.height - pad &&
-      py + ph > obs.y + pad
-    );
-  }
- 
-  private endGame(): void {
-    cancelAnimationFrame(this.animId);
-    this.gameOver.set(true);
-    if (this.score() > this.highScore()) {
-      this.highScore.set(this.score());
-    }
-    this.drawGameOver();
-  }
- 
-
-  private draw(): void {
-    const ctx = this.ctx;
-    ctx.clearRect(0, 0, this.W, this.H);
- 
-    this.drawSky();
-    this.drawClouds();
-    this.drawTrees();
-    this.drawGround();
-
-    for (const obs of this.obstacles) {
-      if (obs.img.complete) {
-        ctx.drawImage(obs.img, obs.x, obs.y, obs.width, obs.height);
-      }
-    }
- 
-
-    if (this.playerImg && this.playerImg.complete) {
-      ctx.drawImage(
-        this.playerImg,
-        this.player.x,
-        this.player.y,
-        this.player.width,
-        this.player.height
-      );
-    } else {
-
-      ctx.fillStyle = '#FFD700';
-      ctx.beginPath();
-      ctx.ellipse(
-        this.player.x + 28, this.player.y + 28, 22, 22, 0, 0, Math.PI * 2
-      );
-      ctx.fill();
-    }
- 
-
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
-    ctx.fillRect(this.W - 140, 8, 132, 28);
-    ctx.fillStyle = '#fff';
-    ctx.font = '500 14px var(--font-mono, monospace)';
-    ctx.textAlign = 'right';
-    ctx.fillText(`Score: ${this.score()}`, this.W - 14, 27);
-    ctx.textAlign = 'left';
-  }
- 
-  private drawSky(): void {
-    const ctx = this.ctx;
-    ctx.fillStyle = '#87CEEB';
-    ctx.fillRect(0, 0, this.W, this.groundY);
-  }
- 
-  private drawClouds(): void {
-    const ctx = this.ctx;
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    for (const c of this.clouds) {
-      ctx.beginPath();
-      ctx.ellipse(c.x, c.y, 40, 22, 0, 0, Math.PI * 2);
-      ctx.ellipse(c.x + 30, c.y - 8, 28, 18, 0, 0, Math.PI * 2);
-      ctx.ellipse(c.x - 28, c.y - 4, 24, 16, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
- 
-  private drawTrees(): void {
-    const ctx = this.ctx;
-
-    const treePositions = [60, 180, 320, 500, 650, 750];
-    for (let i = 0; i < treePositions.length; i++) {
-      const tx = ((treePositions[i] + Math.abs(this.bgX) * 0.3) % (this.W + 60)) - 30;
-
-      ctx.fillStyle = '#6B3A2A';
-      ctx.fillRect(tx + 10, this.GROUND - 30, 10, 40);
-
-      ctx.fillStyle = '#2D6A4F';
-      ctx.beginPath();
-      ctx.moveTo(tx, this.GROUND - 30);
-      ctx.lineTo(tx + 15, this.GROUND - 80);
-      ctx.lineTo(tx + 30, this.GROUND - 30);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = '#40916C';
-      ctx.beginPath();
-      ctx.moveTo(tx + 2, this.GROUND - 50);
-      ctx.lineTo(tx + 15, this.GROUND - 95);
-      ctx.lineTo(tx + 28, this.GROUND - 50);
-      ctx.closePath();
-      ctx.fill();
-    }
-  }
- 
-  private drawGround(): void {
-    const ctx = this.ctx;
-
-    ctx.fillStyle = '#52B788';
-    ctx.fillRect(0, this.groundY - 12, this.W, 12);
-
-    ctx.fillStyle = '#A0522D';
-    ctx.fillRect(0, this.groundY, this.W, this.H - this.groundY);
-
-    ctx.fillStyle = '#74C69D';
-    for (let i = 0; i < this.W; i += 20) {
-      const gx = ((i - this.bgX * 0.8) % this.W + this.W) % this.W;
-      ctx.fillRect(gx, this.groundY - 16, 4, 8);
-      ctx.fillRect(gx + 7, this.groundY - 14, 3, 6);
-    }
-  }
- 
-  private drawIdleScreen(): void {
-    this.drawSky();
-    this.drawClouds();
-    this.drawTrees();
-    this.drawGround();
- 
-    const ctx = this.ctx;
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.fillRect(this.W / 2 - 200, this.H / 2 - 50, 400, 90);
-    ctx.fillStyle = '#fff';
-    ctx.font = '500 22px var(--font-sans, sans-serif)';
-    ctx.textAlign = 'center';
-    ctx.fillText('Pokemon Forest Run', this.W / 2, this.H / 2 - 15);
-    ctx.font = '400 15px var(--font-sans, sans-serif)';
-    ctx.fillText('Press SPACE or tap to start', this.W / 2, this.H / 2 + 18);
-    ctx.textAlign = 'left';
-  }
- 
-  private drawGameOver(): void {
-    const ctx = this.ctx;
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(this.W / 2 - 180, this.H / 2 - 60, 360, 110);
-    ctx.fillStyle = '#FFD700';
-    ctx.font = '500 26px var(--font-sans, sans-serif)';
-    ctx.textAlign = 'center';
-    ctx.fillText('Game Over!', this.W / 2, this.H / 2 - 20);
-    ctx.fillStyle = '#fff';
-    ctx.font = '400 14px var(--font-sans, sans-serif)';
-    ctx.fillText(`Score: ${this.score()}   Best: ${this.highScore()}`, this.W / 2, this.H / 2 + 10);
-    ctx.fillText('Press SPACE or tap to restart', this.W / 2, this.H / 2 + 36);
-    ctx.textAlign = 'left';
-  }
- 
-  private initClouds(): void {
-    this.clouds = [
-      { x: 100, y: 50, speed: 0.4 },
-      { x: 300, y: 35, speed: 0.3 },
-      { x: 550, y: 60, speed: 0.5 },
-      { x: 720, y: 42, speed: 0.35 },
-    ];
-  }
- 
-
-  changePlayerPokemon(name: string): void {
-    this.selectedPokemon.set(name);
-    this.playerImg = null;
-    this.loadPlayerSprite(name);
-  }
- 
-
-  loadRoster(): void {
-    this.pokemonService.getAll().subscribe({
-      next: (list) => this.rosterList.set(list),
-      error: () => this.crudMessage.set('Could not connect to server.'),
-    });
-  }
- 
-  submitForm(): void {
-    if (this.editingId()) {
-      this.pokemonService.update(this.editingId()!, this.formData).subscribe({
-        next: () => {
-          this.crudMessage.set(`Updated ${this.formData.name}!`);
-          this.editingId.set(null);
-          this.resetForm();
-          this.loadRoster();
-        },
-      });
-    } else {
-      this.pokemonService.create(this.formData).subscribe({
-        next: () => {
-          this.crudMessage.set(`Added ${this.formData.name} to your team!`);
-          this.resetForm();
-          this.loadRoster();
-        },
-      });
-    }
-  }
- 
-  editPokemon(p: Pokemon): void {
-    this.editingId.set(p._id!);
-    this.formData = { name: p.name, type: p.type, level: p.level, nature: p.nature };
-  }
- 
-  deletePokemon(id: string, name: string): void {
-    if (!confirm(`Remove ${name} from your team?`)) return;
-    this.pokemonService.delete(id).subscribe({
-      next: () => {
-        this.crudMessage.set(`${name} was released.`);
-        this.loadRoster();
+    
+    this.pokemonService.login(this.loginUsername(), this.loginPassword()).subscribe({
+      next: (response: any) => {
+        const user = { _id: response.userId, username: response.username };
+        this.pokemonService.currentUser.set(user);
+        this.pokemonService.isLoggedIn.set(true);
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        this.showLogin.set(false);
+        this.loadUserData();
+        this.authError.set('');
       },
+      error: () => {
+        this.authError.set('Invalid credentials');
+      }
     });
   }
- 
-  cancelEdit(): void {
-    this.editingId.set(null);
-    this.resetForm();
+  
+  register() {
+    if (!this.registerUsername() || !this.registerPassword()) {
+      this.authError.set('Please enter username and password');
+      return;
+    }
+    
+    this.pokemonService.register(this.registerUsername(), this.registerPassword()).subscribe({
+      next: () => {
+        // Auto login after registration
+        this.loginUsername.set(this.registerUsername());
+        this.loginPassword.set(this.registerPassword());
+        this.login();
+      },
+      error: () => {
+        this.authError.set('Username already exists');
+      }
+    });
   }
- 
-  private resetForm(): void {
-    this.formData = { name: '', type: '', level: 1, nature: '' };
+  
+  ngOnDestroy() {
+    if (this.gameLoop) {
+      cancelAnimationFrame(this.gameLoop);
+    }
+    if (this.catchTimer) {
+      clearInterval(this.catchTimer);
+    }
   }
 }

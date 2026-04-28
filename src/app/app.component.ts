@@ -1,13 +1,21 @@
+// app.component.ts
 import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { GameComponent } from './game/game.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [GameComponent],
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.css']
+  imports: [CommonModule, GameComponent],
+  template: `
+    <app-game></app-game>
+  `,
+  styles: [`
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+  `]
 })
-export class AppComponent {
-  title = 'pokemon-game';
-}
+export class AppComponent {}
