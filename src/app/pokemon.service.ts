@@ -1,11 +1,7 @@
-// pokemon.service.ts
-import { HttpClient } from '@angular/common/http';
+// pokemon.service.ts - Add the updatePokemon method
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
-
-export interface User {
-  _id: string;
-  username: string;
-}
+import { catchError, throwError } from 'rxjs';
 
 export interface Pokemon {
   _id?: string;
@@ -13,15 +9,15 @@ export interface Pokemon {
   type: string;
   level: number;
   nature: string;
-  userId: string;
   caughtAt?: Date;
 }
 
 export interface Score {
-  userId: string;
-  username: string;
+  _id?: string;
+  playerName: string;
   score: number;
   level: number;
+  pokemonCaught: number;
   date?: Date;
 }
 
@@ -32,55 +28,97 @@ export class PokemonService {
   private http = inject(HttpClient);
   private apiUrl = 'http://localhost:3000/api';
   
-  // User state
-  currentUser = signal<User | null>(null);
-  isLoggedIn = signal(false);
-  
-  // Pokemon state
+  // State
   pokemonList = signal<Pokemon[]>([]);
+  highScores = signal<Score[]>([]);
+  playerName = signal<string>('Trainer');
+  serverError = signal<string | null>(null);
   
-  // Leaderboard
-  leaderboard = signal<Score[]>([]);
-  
-  // Login/Register
-  register(username: string, password: string) {
-    return this.http.post<{ message: string; userId: string }>(`${this.apiUrl}/register`, { username, password });
-  }
-  
-  login(username: string, password: string) {
-    return this.http.post<{ message: string; userId: string; username: string }>(`${this.apiUrl}/login`, { username, password });
-  }
-  
-  // Pokemon CRUD
-  fetchPokemon(userId: string) {
-    this.http.get<Pokemon[]>(`${this.apiUrl}/pokemon/${userId}`).subscribe(data => {
-      this.pokemonList.set(data);
-    });
-  }
-  
+  // CREATE - Save new Pokemon
   savePokemon(pokemon: Omit<Pokemon, '_id'>) {
-    return this.http.post<Pokemon>(`${this.apiUrl}/pokemon`, pokemon);
+    return this.http.post<Pokemon>(`${this.apiUrl}/pokemon`, pokemon).pipe(
+      catchError((error: HttpErrorResponse) => {
+        console.error('Save error:', error);
+        return throwError(() => new Error('Failed to save Pokemon.'));
+      })
+    );
   }
   
-  deletePokemon(id: string) {
-    return this.http.delete(`${this.apiUrl}/pokemon/${id}`);
-  }
-  
-  // Leaderboard
-  saveScore(score: Score) {
-    return this.http.post<Score>(`${this.apiUrl}/scores`, score);
-  }
-  
-  fetchLeaderboard() {
-    this.http.get<Score[]>(`${this.apiUrl}/leaderboard`).subscribe(data => {
-      this.leaderboard.set(data);
+  // READ - Fetch all Pokemon
+  fetchPokemon() {
+    this.http.get<Pokemon[]>(`${this.apiUrl}/pokemon`).subscribe({
+      next: (data) => {
+        this.pokemonList.set(data);
+        this.serverError.set(null);
+      },
+      error: (err) => {
+        console.error('Failed to fetch Pokemon:', err);
+        this.serverError.set('Cannot connect to server.');
+      }
     });
   }
   
-  logout() {
-    this.currentUser.set(null);
-    this.isLoggedIn.set(false);
-    this.pokemonList.set([]);
-    localStorage.removeItem('currentUser');
+  // UPDATE - Edit existing Pokemon (ADD THIS METHOD)
+  updatePokemon(id: string, pokemon: Partial<Pokemon>) {
+    return this.http.put<Pokemon>(`${this.apiUrl}/pokemon/${id}`, pokemon).pipe(
+      catchError((error: HttpErrorResponse) => {
+        console.error('Update error:', error);
+        return throwError(() => new Error('Failed to update Pokemon.'));
+      })
+    );
+  }
+  
+  // DELETE - Remove Pokemon
+  deletePokemon(id: string) {
+    return this.http.delete(`${this.apiUrl}/pokemon/${id}`).pipe(
+      catchError((error: HttpErrorResponse) => {
+        console.error('Delete error:', error);
+        return throwError(() => new Error('Failed to delete Pokemon.'));
+      })
+    );
+  }
+  
+  // Score methods
+  saveScore(score: Omit<Score, '_id' | 'date'>) {
+    return this.http.post<Score>(`${this.apiUrl}/scores`, score).pipe(
+      catchError((error: HttpErrorResponse) => {
+        console.error('Save score error:', error);
+        return throwError(() => new Error('Failed to save score.'));
+      })
+    );
+  }
+  
+  fetchHighScores() {
+    this.http.get<Score[]>(`${this.apiUrl}/scores`).subscribe({
+      next: (data) => {
+        this.highScores.set(data);
+        this.serverError.set(null);
+      },
+      error: (err) => {
+        console.error('Failed to fetch high scores:', err);
+        this.serverError.set('Cannot connect to server.');
+      }
+    });
+  }
+  
+  setPlayerName(name: string) {
+    this.playerName.set(name);
+    localStorage.setItem('playerName', name);
+  }
+  
+  loadPlayerName() {
+    const saved = localStorage.getItem('playerName');
+    if (saved) {
+      this.playerName.set(saved);
+    }
+  }
+  
+  checkServerConnection(): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.http.get(`${this.apiUrl}/pokemon`).subscribe({
+        next: () => resolve(true),
+        error: () => resolve(false)
+      });
+    });
   }
 }

@@ -1,80 +1,105 @@
 <!-- game.component.html -->
 <div class="game-wrapper">
-  <!-- Login Screen -->
-  @if (showLogin()) {
-    <div class="login-container">
-      <div class="login-box">
-        <h2>⚡ Pokemon Runner ⚡</h2>
-        <div class="login-tabs">
-          <button [class.active]="loginUsername() && !registerUsername()" (click)="loginUsername.set(''); registerUsername.set('')">Login</button>
-          <button [class.active]="registerUsername()" (click)="registerUsername.set(''); loginUsername.set('')">Register</button>
+  <!-- Name Input Screen -->
+  @if (showNameInput()) {
+    <div class="name-screen">
+      <div class="name-card">
+        <h1>⚡ POKEMON RUNNER ⚡</h1>
+        <div class="pikachu-welcome">🐭⚡🐭</div>
+        <h2>Enter Your Name</h2>
+        <input type="text" 
+               [(ngModel)]="tempPlayerName" 
+               placeholder="Trainer Name"
+               maxlength="20"
+               (keyup.enter)="startGameWithName()"
+               autofocus>
+        <button (click)="startGameWithName()" class="start-btn">START GAME</button>
+        <button (click)="viewHighScores()" class="highscore-btn">🏆 VIEW HIGH SCORES 🏆</button>
+      </div>
+    </div>
+  }
+  
+  <!-- High Scores Screen -->
+  @if (showHighScores()) {
+    <div class="highscores-screen">
+      <div class="highscores-card">
+        <h1>🏆 HIGH SCORES 🏆</h1>
+        <div class="scores-list">
+          @for (score of pokemonService.highScores(); track score._id; let i = $index) {
+            <div class="score-entry">
+              <span class="rank">{{ i + 1 }}.</span>
+              <span class="player">{{ score.playerName }}</span>
+              <span class="score-value">{{ score.score }}</span>
+              <span class="level">Lv.{{ score.level }}</span>
+              <span class="caught">🐱 {{ score.pokemonCaught }}</span>
+            </div>
+          }
+          @if (pokemonService.highScores().length === 0) {
+            <div class="no-scores">No scores yet. Be the first!</div>
+          }
         </div>
-        
-        @if (loginUsername() || (!registerUsername() && !loginUsername())) {
-          <div class="login-form">
-            <input type="text" placeholder="Username" [(ngModel)]="loginUsername">
-            <input type="password" placeholder="Password" [(ngModel)]="loginPassword">
-            <button (click)="login()">Login</button>
-          </div>
-        }
-        
-        @if (registerUsername()) {
-          <div class="login-form">
-            <input type="text" placeholder="Username" [(ngModel)]="registerUsername">
-            <input type="password" placeholder="Password" [(ngModel)]="registerPassword">
-            <button (click)="register()">Register</button>
-          </div>
-        }
-        
-        @if (authError()) {
-          <div class="error">{{ authError() }}</div>
-        }
+        <div class="highscore-buttons">
+          <button (click)="closeHighScores()" class="back-btn">BACK</button>
+          <button (click)="backToNameInput()" class="new-game-btn">NEW GAME</button>
+        </div>
       </div>
     </div>
   }
   
   <!-- Main Game -->
-  @if (!showLogin()) {
+  @if (!showNameInput() && !showHighScores()) {
     <div class="game-container">
       <!-- Header -->
       <div class="game-header">
-        <div class="user-info">
-          👤 {{ pokemonService.currentUser()?.username }}
-          <button (click)="pokemonService.logout(); showLogin.set(true)" class="logout-btn">Logout</button>
+        <div class="title-section">
+          <h1>⚡ POKEMON RUNNER ⚡</h1>
+          <div class="player-info">Trainer: {{ pokemonService.playerName() }}</div>
         </div>
         <div class="game-stats">
-          <div class="stat">🏆 Score: {{ score() }}</div>
-          <div class="stat">⭐ Level: {{ level() }}</div>
-          <div class="stat">💪 Active: {{ activePokemon()?.name }}</div>
-          <div class="stat">📦 Team: {{ pokemonQueue().length }}</div>
+          <div class="stat">🏆 SCORE: {{ currentScore() }}</div>
+          <div class="stat">⭐ LEVEL: {{ currentLevel() }}</div>
+          <div class="stat">💪 ACTIVE: {{ activePokemon()?.name }}</div>
+          <div class="stat">📦 TEAM: {{ pokemonQueue().length }}</div>
+          <div class="stat">🐱 CAUGHT: {{ pokemonCaughtCount() }}</div>
         </div>
+        <button (click)="backToNameInput()" class="menu-btn">MENU</button>
       </div>
       
-      <!-- Game Area with 3 Rows -->
+      <!-- Game Area -->
       <div class="game-area">
-        <!-- Row indicators -->
-        <div class="row-labels">
-          <div class="row-label top">▲ TOP ▲</div>
-          <div class="row-label middle">● MIDDLE ●</div>
-          <div class="row-label bottom">▼ BOTTOM ▼</div>
-        </div>
+        <div class="running-track"></div>
         
-        <!-- 3 Running Rows -->
         @for (row of rows; track row) {
           <div class="running-row" [class.active-row]="pokemonRow() === row">
-            <!-- Pokemon Character -->
+            @if (gameRunning() && pokemonRow() === row) {
+              <div class="speed-lines">
+                <div class="speed-line"></div>
+                <div class="speed-line"></div>
+                <div class="speed-line"></div>
+              </div>
+            }
+            
             @if (activePokemon() && pokemonRow() === row && gameRunning()) {
-              <div class="pokemon-runner" [style.left.px]="100">
+              <div class="pokemon-runner running-animation">
                 @if (activePokemon()?.imageUrl) {
-                  <img [src]="activePokemon()?.imageUrl" class="runner-img running"/>
+                  <img [src]="activePokemon()?.imageUrl" 
+                       class="runner-img" 
+                       [class.running]="gameRunning()">
                 } @else {
-                  <div class="runner-emoji running">⚡</div>
+                  <div class="runner-emoji" [class.running]="gameRunning()">
+                    {{ getCurrentAnimationFrame() }}
+                  </div>
+                }
+                @if (gameRunning()) {
+                  <div class="dust-particles">
+                    <div class="dust">💨</div>
+                    <div class="dust">💨</div>
+                  </div>
                 }
                 <div class="pokemon-name">{{ activePokemon()?.name }}</div>
               </div>
             }
             
-            <!-- Obstacles -->
             @for (obstacle of obstacles(); track obstacle.id) {
               @if (obstacle.row === row) {
                 <div class="obstacle" [style.left.px]="obstacle.x">
@@ -85,11 +110,13 @@
           </div>
         }
         
-        <!-- Control Instructions -->
         <div class="controls">
           <div class="control-key">▲</div>
           <div class="control-key">▼</div>
-          <div class="control-text">Move between rows</div>
+          <div class="control-text">MOVE BETWEEN ROWS</div>
+          <div class="running-indicator" [class.active]="gameRunning()">
+            🏃 {{ gameRunning() ? 'RUNNING' : 'READY' }}
+          </div>
         </div>
       </div>
       
@@ -97,11 +124,9 @@
       @if (deathMessage()) {
         <div class="message death">{{ deathMessage() }}</div>
       }
-      
       @if (switchMessage()) {
         <div class="message switch">{{ switchMessage() }}</div>
       }
-      
       @if (levelUpMessage()) {
         <div class="message levelup">{{ levelUpMessage() }}</div>
       }
@@ -109,14 +134,14 @@
       <!-- Team Queue -->
       @if (pokemonQueue().length > 1) {
         <div class="team-queue">
-          <h4>Your Pokemon Team</h4>
+          <h4>YOUR POKEMON TEAM</h4>
           <div class="queue-list">
             @for (p of pokemonQueue(); track p.id) {
               <div class="queue-card" [class.active]="activePokemon()?.id === p.id">
                 @if (p.imageUrl) {
                   <img [src]="p.imageUrl" class="queue-img"/>
                 } @else {
-                  <div class="queue-emoji">⚡</div>
+                  <div class="queue-emoji">{{ getRunningFrame(p.name) }}</div>
                 }
                 <div class="queue-name">{{ p.name }}</div>
                 <div class="queue-level">Lv.{{ p.level }}</div>
@@ -126,91 +151,67 @@
         </div>
       }
       
-      <!-- Leaderboard -->
-      <div class="leaderboard">
-        <h4>🏆 Leaderboard 🏆</h4>
-        <div class="leaderboard-list">
-          @for (entry of pokemonService.leaderboard(); track entry.userId; let i = $index) {
-            <div class="leaderboard-entry">
-              <span class="rank">{{ i + 1 }}.</span>
-              <span class="name">{{ entry.username }}</span>
-              <span class="score">{{ entry.score }}</span>
-              <span class="level">Lv.{{ entry.level }}</span>
-            </div>
-          }
-        </div>
-      </div>
-      
-      <!-- Start Screen -->
-      @if (!gameRunning() && !gameOver() && !catchInProgress()) {
-        <div class="start-screen">
-          <h2>⚡ GET READY TO RUN! ⚡</h2>
-          <div class="instructions">
-            <h3>How to Play:</h3>
-            <ul>
-              <li>Use <kbd>▲</kbd> and <kbd>▼</kbd> arrow keys to switch rows</li>
-              <li>Avoid obstacles in your current row!</li>
-              <li>Survive to reach the next level</li>
-              <li>Catch wild Pokemon by guessing their names!</li>
-              <li>Each caught Pokemon joins your team</li>
-              <li>If your Pokemon hits an obstacle, the next one continues</li>
-            </ul>
-          </div>
-          <button (click)="startGame()" class="start-btn">START RUNNING!</button>
-        </div>
-      }
-      
       <!-- Game Over Screen -->
       @if (gameOver()) {
         <div class="game-over-screen">
-          <h2>💀 GAME OVER 💀</h2>
-          <div class="final-score">Final Score: {{ score() }}</div>
-          <div class="final-level">Reached Level: {{ level() }}</div>
-          <button (click)="resetGame()" class="restart-btn">Play Again</button>
+          <div class="game-over-content">
+            <h2>💀 GAME OVER 💀</h2>
+            <div class="final-stats">
+              <div class="final-score">SCORE: {{ currentScore() }}</div>
+              <div class="final-level">LEVEL: {{ currentLevel() }}</div>
+              <div class="final-caught">POKEMON CAUGHT: {{ pokemonCaughtCount() }}</div>
+            </div>
+            <button (click)="resetGame()" class="restart-btn">PLAY AGAIN</button>
+            <button (click)="backToNameInput()" class="menu-btn">MAIN MENU</button>
+          </div>
         </div>
       }
       
       <!-- Catch Pokemon Modal -->
-      @if (showCatchPrompt() && wildPokemon) {
+      @if (showCatchPrompt() && wildPokemon()) {
         <div class="modal-overlay">
           <div class="catch-modal">
-            <h2>✨ A Wild Pokemon Appeared! ✨</h2>
-            @if (wildPokemon.imageUrl) {
-              <img [src]="wildPokemon.imageUrl" class="wild-pokemon-img"/>
+            <h2>✨ WILD POKEMON APPEARED! ✨</h2>
+            @if (wildPokemon()?.imageUrl) {
+              <img [src]="wildPokemon()?.imageUrl" class="wild-pokemon-img"/>
             } @else {
-              <div class="wild-pokemon-emoji">{{ wildPokemon.icon }}</div>
+              <div class="wild-pokemon-emoji">{{ wildPokemon()?.icon }}</div>
             }
             <div class="pokemon-details">
-              <p>Type: {{ wildPokemon.type }}</p>
-              <p>Level: {{ wildPokemon.level }}</p>
-              <p>Nature: {{ wildPokemon.nature }}</p>
+              <p><strong>Type:</strong> {{ wildPokemon()?.type }}</p>
+              <p><strong>Level:</strong> {{ wildPokemon()?.level }}</p>
+              <p><strong>Nature:</strong> {{ wildPokemon()?.nature }}</p>
             </div>
             <div class="catch-actions">
-              <button (click)="runAway()" class="run-btn">🏃 Run Away</button>
-              <button (click)="attemptCatch()" class="catch-btn">🎯 Catch It!</button>
+              <button (click)="runAway()" class="run-btn">🏃 RUN AWAY</button>
+              <button (click)="attemptCatch()" class="catch-btn">🎯 CATCH IT!</button>
             </div>
           </div>
         </div>
       }
       
       <!-- Name Input Modal -->
-      @if (catchTimer && !showCatchPrompt() && catchInProgress() && wildPokemon) {
+      @if (catchTimer && !showCatchPrompt() && catchInProgress() && wildPokemon()) {
         <div class="modal-overlay">
           <div class="name-modal">
-            <h2>What Pokemon is this?</h2>
-            <div class="timer">⏰ Time: {{ timeLeft() }}s</div>
-            @if (wildPokemon.imageUrl) {
-              <img [src]="wildPokemon.imageUrl" class="wild-pokemon-img small"/>
+            <h2>WHAT POKEMON IS THIS?</h2>
+            <div class="timer">⏰ TIME: {{ timeLeft() }}s</div>
+            @if (wildPokemon()?.imageUrl) {
+              <img [src]="wildPokemon()?.imageUrl" class="wild-pokemon-img small"/>
             } @else {
-              <div class="wild-pokemon-emoji large">{{ wildPokemon.icon }}</div>
+              <div class="wild-pokemon-emoji large">{{ wildPokemon()?.icon }}</div>
             }
             <input type="text" 
                    [(ngModel)]="pokemonNameInput" 
                    placeholder="Enter Pokemon name..."
                    (keyup.enter)="submitPokemonName()"
                    autofocus>
-            <button (click)="submitPokemonName()" class="submit-btn">Submit</button>
-            <p class="hint">Hint: {{ wildPokemon.name.length }} letters</p>
+            <button (click)="submitPokemonName()" class="submit-btn">🎯 CATCH</button>
+            <p class="hint">💡 Hint: 
+              @if (wildPokemon()) {
+                {{ wildPokemon()!.name.length }} letters, starts with "{{ wildPokemon()!.name[0] }}"
+              }
+            </p>
           </div>
         </div>
       }

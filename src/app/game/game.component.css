@@ -1,158 +1,72 @@
-/* game.component.css */
+/* game.component.css - Enhanced running animations */
 .game-wrapper {
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 20px;
 }
 
-/* Login Styles */
-.login-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 80vh;
-}
-
-.login-box {
-  background: white;
-  padding: 40px;
-  border-radius: 20px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-  text-align: center;
-  min-width: 350px;
-}
-
-.login-box h2 {
-  color: #ffcc00;
-  text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-  margin-bottom: 30px;
-}
-
-.login-tabs {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.login-tabs button {
-  flex: 1;
-  padding: 10px;
-  border: none;
-  background: #f0f0f0;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.3s;
-}
-
-.login-tabs button.active {
-  background: #ffcc00;
-  color: #333;
-  font-weight: bold;
-}
-
-.login-form input {
-  width: 100%;
-  padding: 12px;
-  margin: 10px 0;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  font-size: 16px;
-}
-
-.login-form button {
-  width: 100%;
-  padding: 12px;
-  background: #ffcc00;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-  margin-top: 10px;
-}
-
-.error {
-  color: red;
-  margin-top: 10px;
-}
-
-/* Game Container */
 .game-container {
-  max-width: 1200px;
+  max-width: 1000px;
   margin: 0 auto;
-  background: rgba(0,0,0,0.8);
+  background: rgba(0,0,0,0.85);
   border-radius: 20px;
   padding: 20px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
 }
 
 .game-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px;
-  background: rgba(255,255,255,0.1);
-  border-radius: 10px;
+  text-align: center;
   margin-bottom: 20px;
 }
 
-.user-info {
-  color: white;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.logout-btn {
-  padding: 5px 15px;
-  background: #ff4444;
-  border: none;
-  border-radius: 5px;
-  color: white;
-  cursor: pointer;
+.game-header h1 {
+  color: #ffcc00;
+  margin-bottom: 15px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
 }
 
 .game-stats {
   display: flex;
+  justify-content: center;
   gap: 20px;
+  flex-wrap: wrap;
 }
 
 .stat {
   color: #ffcc00;
+  background: rgba(0,0,0,0.5);
+  padding: 5px 15px;
+  border-radius: 20px;
   font-weight: bold;
-  font-size: 16px;
 }
 
-/* Game Area with 3 Rows */
+/* Game Area */
 .game-area {
-  position: relative;
   background: linear-gradient(to bottom, #2c3e50 0%, #1a472a 100%);
   border-radius: 15px;
   padding: 20px;
-  margin-bottom: 20px;
   border: 3px solid #ffcc00;
+  position: relative;
+  overflow: hidden;
 }
 
-.row-labels {
+/* Running track effect */
+.running-track {
   position: absolute;
-  left: -80px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  flex-direction: column;
-  gap: 95px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 50px,
+    rgba(255,255,255,0.1) 50px,
+    rgba(255,255,255,0.1) 100px
+  );
+  pointer-events: none;
 }
 
-.row-label {
-  background: rgba(0,0,0,0.7);
-  color: #ffcc00;
-  padding: 5px 10px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: bold;
-}
-
+/* Running Rows */
 .running-row {
   position: relative;
   height: 100px;
@@ -160,21 +74,86 @@
   background: rgba(255,255,255,0.05);
   border-radius: 10px;
   border-left: 4px solid #ffcc00;
-  transition: all 0.3s;
+  overflow: visible;
 }
 
 .running-row.active-row {
-  background: rgba(255,204,0,0.1);
-  border-left: 4px solid #ffcc00;
+  background: rgba(255,204,0,0.15);
   box-shadow: 0 0 10px rgba(255,204,0,0.3);
 }
 
-/* Pokemon Runner */
+/* Speed lines effect */
+.speed-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.speed-line {
+  position: absolute;
+  top: 50%;
+  width: 20px;
+  height: 2px;
+  background: rgba(255,255,255,0.5);
+  animation: speedLine 0.5s linear infinite;
+}
+
+.speed-line:nth-child(1) {
+  top: 30%;
+  animation-delay: 0s;
+  animation-duration: 0.4s;
+}
+
+.speed-line:nth-child(2) {
+  top: 50%;
+  animation-delay: 0.2s;
+  animation-duration: 0.3s;
+}
+
+.speed-line:nth-child(3) {
+  top: 70%;
+  animation-delay: 0.1s;
+  animation-duration: 0.35s;
+}
+
+@keyframes speedLine {
+  0% {
+    left: -20px;
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+/* Pokemon Runner with Running Animation */
 .pokemon-runner {
   position: absolute;
-  bottom: 10px;
-  transition: left 0.05s linear;
+  left: 80px;
+  bottom: 15px;
   z-index: 10;
+  transition: transform 0.05s linear;
+}
+
+.pokemon-runner.running-animation {
+  animation: runBounce 0.3s ease infinite;
+}
+
+@keyframes runBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
 }
 
 .runner-img {
@@ -185,16 +164,86 @@
 }
 
 .runner-img.running {
-  animation: run 0.2s steps(2) infinite;
+  animation: runShake 0.15s steps(2) infinite;
+}
+
+.runner-img.running-fast {
+  animation: runShakeFast 0.1s steps(2) infinite;
 }
 
 .runner-emoji {
   font-size: 60px;
-  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+  display: inline-block;
 }
 
 .runner-emoji.running {
-  animation: run 0.2s steps(2) infinite;
+  animation: runShake 0.15s steps(2) infinite;
+}
+
+.runner-emoji.running-fast {
+  animation: runShakeFast 0.1s steps(2) infinite;
+}
+
+@keyframes runShake {
+  0%, 100% {
+    transform: translateX(0) translateY(0);
+  }
+  25% {
+    transform: translateX(2px) translateY(-1px);
+  }
+  75% {
+    transform: translateX(-2px) translateY(1px);
+  }
+}
+
+@keyframes runShakeFast {
+  0%, 100% {
+    transform: translateX(0) translateY(0);
+  }
+  25% {
+    transform: translateX(3px) translateY(-2px);
+  }
+  75% {
+    transform: translateX(-3px) translateY(2px);
+  }
+}
+
+/* Dust particles */
+.dust-particles {
+  position: absolute;
+  bottom: 0;
+  left: -20px;
+  pointer-events: none;
+}
+
+.dust {
+  position: absolute;
+  font-size: 12px;
+  animation: dustFloat 0.3s ease-out forwards;
+}
+
+.dust:nth-child(1) {
+  bottom: 0;
+  left: -10px;
+  animation-delay: 0s;
+}
+
+.dust:nth-child(2) {
+  bottom: -5px;
+  left: -15px;
+  animation-delay: 0.1s;
+}
+
+@keyframes dustFloat {
+  0% {
+    opacity: 0.8;
+    transform: translateX(0) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-20px) translateY(-10px);
+  }
 }
 
 .pokemon-name {
@@ -206,21 +255,32 @@
   color: #ffcc00;
   padding: 2px 8px;
   border-radius: 10px;
-  font-size: 12px;
+  font-size: 11px;
   white-space: nowrap;
+  font-weight: bold;
 }
 
 /* Obstacles */
 .obstacle {
   position: absolute;
-  bottom: 10px;
+  bottom: 15px;
   z-index: 5;
+  transition: left 0.05s linear;
 }
 
 .obstacle-icon {
   font-size: 45px;
   filter: drop-shadow(0 0 5px rgba(255,0,0,0.5));
-  animation: shake 0.3s ease infinite;
+  animation: obstacleShake 0.3s ease infinite;
+}
+
+@keyframes obstacleShake {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
 }
 
 /* Controls */
@@ -231,7 +291,7 @@
   gap: 15px;
   margin-top: 20px;
   padding: 15px;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.6);
   border-radius: 10px;
 }
 
@@ -243,11 +303,34 @@
   font-size: 20px;
   font-weight: bold;
   border: 2px solid #ffcc00;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 
 .control-text {
   color: white;
   font-size: 14px;
+  font-weight: bold;
+}
+
+.running-indicator {
+  color: #ffcc00;
+  font-weight: bold;
+  animation: pulse 1s ease infinite;
+}
+
+.running-indicator.active {
+  animation: runPulse 0.5s ease infinite;
+}
+
+@keyframes runPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
 }
 
 /* Messages */
@@ -261,36 +344,40 @@
   font-weight: bold;
   z-index: 100;
   animation: fadeInOut 2s ease;
+  white-space: nowrap;
+  font-size: 16px;
 }
 
 .message.death {
-  background: rgba(0,0,0,0.9);
+  background: rgba(0,0,0,0.95);
   color: #ff4444;
   border: 2px solid #ff4444;
 }
 
-.message.switch {
-  background: rgba(0,0,0,0.9);
-  color: #00ff00;
-  border: 2px solid #00ff00;
-}
-
 .message.levelup {
-  background: rgba(0,0,0,0.9);
+  background: rgba(0,0,0,0.95);
   color: #ffcc00;
   border: 2px solid #ffcc00;
+}
+
+.message.highscore {
+  background: linear-gradient(135deg, #ffcc00, #ff9900);
+  color: #333;
+  border: 2px solid #fff;
+  font-size: 20px;
 }
 
 /* Team Queue */
 .team-queue {
   background: rgba(255,255,255,0.1);
-  border-radius: 10px;
+  border-radius: 15px;
   padding: 15px;
-  margin-bottom: 20px;
+  margin-top: 20px;
 }
 
 .team-queue h4 {
   color: #ffcc00;
+  text-align: center;
   margin-bottom: 15px;
 }
 
@@ -298,11 +385,11 @@
   display: flex;
   gap: 15px;
   overflow-x: auto;
-  padding: 10px;
+  justify-content: center;
 }
 
 .queue-card {
-  background: rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.6);
   border-radius: 10px;
   padding: 10px;
   text-align: center;
@@ -313,8 +400,17 @@
 
 .queue-card.active {
   border-color: #ffcc00;
-  box-shadow: 0 0 10px #ffcc00;
-  background: rgba(255,204,0,0.2);
+  box-shadow: 0 0 15px #ffcc00;
+  animation: cardPulse 0.5s ease infinite;
+}
+
+@keyframes cardPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
 }
 
 .queue-img {
@@ -338,62 +434,68 @@
   font-size: 10px;
 }
 
-/* Leaderboard */
-.leaderboard {
-  background: rgba(0,0,0,0.5);
-  border-radius: 10px;
-  padding: 15px;
+/* Preview running animation on start screen */
+.running-preview {
+  font-size: 40px;
+  margin: 20px 0;
 }
 
-.leaderboard h4 {
-  color: #ffcc00;
-  margin-bottom: 15px;
-  text-align: center;
+.preview-run {
+  display: inline-block;
+  animation: previewRun 0.3s steps(2) infinite;
 }
 
-.leaderboard-list {
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.leaderboard-entry {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 15px;
-  margin: 5px 0;
-  background: rgba(255,255,255,0.1);
-  border-radius: 5px;
-  color: white;
-}
-
-.leaderboard-entry .rank {
-  font-weight: bold;
-  color: #ffcc00;
+@keyframes previewRun {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(5px);
+  }
 }
 
 /* Screens */
 .start-screen, .game-over-screen {
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(0,0,0,0.95);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 50;
+}
+
+.start-content, .game-over-content {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 40px;
   border-radius: 20px;
   text-align: center;
-  z-index: 50;
-  min-width: 400px;
-  border: 3px solid #ffcc00;
+  border: 4px solid #ffcc00;
+  max-width: 500px;
 }
 
-.start-screen h2, .game-over-screen h2 {
-  color: #ffcc00;
-  margin-bottom: 20px;
+.start-btn, .restart-btn {
+  background: #ffcc00;
+  color: #333;
+  border: none;
+  padding: 15px 30px;
+  font-size: 18px;
+  font-weight: bold;
+  border-radius: 10px;
+  cursor: pointer;
+  margin: 20px 0;
+  transition: transform 0.2s;
+}
+
+.start-btn:hover, .restart-btn:hover {
+  transform: scale(1.05);
 }
 
 .instructions {
   text-align: left;
-  margin: 20px 0;
   color: white;
 }
 
@@ -409,20 +511,8 @@ kbd {
   background: #333;
   padding: 3px 8px;
   border-radius: 5px;
-  font-weight: bold;
   color: #ffcc00;
-}
-
-.start-btn, .restart-btn {
-  background: #ffcc00;
-  color: #333;
-  border: none;
-  padding: 15px 30px;
-  font-size: 18px;
   font-weight: bold;
-  border-radius: 10px;
-  cursor: pointer;
-  margin-top: 20px;
 }
 
 /* Modals */
@@ -453,6 +543,7 @@ kbd {
   height: 200px;
   object-fit: contain;
   margin: 20px 0;
+  animation: float 2s ease infinite;
 }
 
 .wild-pokemon-img.small {
@@ -460,13 +551,13 @@ kbd {
   height: 150px;
 }
 
-.wild-pokemon-emoji {
-  font-size: 100px;
-  margin: 20px 0;
-}
-
-.wild-pokemon-emoji.large {
-  font-size: 120px;
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 .pokemon-details {
@@ -518,6 +609,7 @@ input {
   border: 2px solid #ffcc00;
   border-radius: 8px;
   text-align: center;
+  font-weight: bold;
 }
 
 .hint {
@@ -531,26 +623,59 @@ input {
   animation: spin 1s linear infinite;
 }
 
-/* Animations */
-@keyframes run {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(5px); }
-}
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-2px); }
-  75% { transform: translateX(2px); }
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes fadeInOut {
-  0% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
-  15% { opacity: 1; transform: translateX(-50%) translateY(0); }
-  85% { opacity: 1; transform: translateX(-50%) translateY(0); }
-  100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  15% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  85% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+/* Responsive */
+@media (max-width: 768px) {
+  .game-stats {
+    gap: 10px;
+  }
+  
+  .stat {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+  
+  .runner-emoji {
+    font-size: 45px;
+  }
+  
+  .obstacle-icon {
+    font-size: 35px;
+  }
+  
+  .control-key {
+    padding: 5px 10px;
+    font-size: 16px;
+  }
+  
+  .running-indicator {
+    font-size: 10px;
+  }
 }
