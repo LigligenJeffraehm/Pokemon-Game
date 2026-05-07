@@ -1,7 +1,13 @@
-// pokemon.service.ts - Add the updatePokemon method
+// pokemon.service.ts
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { catchError, throwError } from 'rxjs';
+
+export interface User {
+  _id: string;
+  username: string;
+  isAdmin: boolean;
+}
 
 export interface Pokemon {
   _id?: string;
@@ -9,12 +15,14 @@ export interface Pokemon {
   type: string;
   level: number;
   nature: string;
+  userId: string;
   caughtAt?: Date;
 }
 
 export interface Score {
   _id?: string;
-  playerName: string;
+  userId: string;
+  username: string;
   score: number;
   level: number;
   pokemonCaught: number;
@@ -28,25 +36,70 @@ export class PokemonService {
   private http = inject(HttpClient);
   private apiUrl = 'http://localhost:3000/api';
   
-  // State
+  // User state
+  currentUser = signal<User | null>(null);
+  isLoggedIn = signal(false);
+  isAdmin = signal(false);
+  playerName = signal<string>('Trainer');
+  
+  // Pokemon state
   pokemonList = signal<Pokemon[]>([]);
   highScores = signal<Score[]>([]);
-  playerName = signal<string>('Trainer');
+  userScores = signal<Score[]>([]);
   serverError = signal<string | null>(null);
   
-  // CREATE - Save new Pokemon
-  savePokemon(pokemon: Omit<Pokemon, '_id'>) {
-    return this.http.post<Pokemon>(`${this.apiUrl}/pokemon`, pokemon).pipe(
-      catchError((error: HttpErrorResponse) => {
-        console.error('Save error:', error);
-        return throwError(() => new Error('Failed to save Pokemon.'));
-      })
+  // ============= AUTH METHODS =============
+  
+  register(username: string, password: string, isAdmin: boolean = false) {
+    return this.http.post<{ message: string; userId: string; isAdmin: boolean }>(
+      `${this.apiUrl}/register`, 
+      { username, password, isAdmin }
     );
   }
   
-  // READ - Fetch all Pokemon
-  fetchPokemon() {
-    this.http.get<Pokemon[]>(`${this.apiUrl}/pokemon`).subscribe({
+  login(username: string, password: string) {
+    return this.http.post<{ message: string; userId: string; username: string; isAdmin: boolean }>(
+      `${this.apiUrl}/login`, 
+      { username, password }
+    );
+  }
+  
+  logout() {
+    this.currentUser.set(null);
+    this.isLoggedIn.set(false);
+    this.isAdmin.set(false);
+    this.pokemonList.set([]);
+    localStorage.removeItem('currentUser');
+  }
+  
+  setPlayerName(name: string) {
+    this.playerName.set(name);
+    localStorage.setItem('playerName', name);
+  }
+  
+  loadPlayerName() {
+    const saved = localStorage.getItem('playerName');
+    if (saved) {
+      this.playerName.set(saved);
+    }
+  }
+  
+  loadStoredUser() {
+    const storedUser = localStorage.getItem('currentUser');
+    if (storedUser) {
+      const user = JSON.parse(storedUser);
+      this.currentUser.set(user);
+      this.isLoggedIn.set(true);
+      this.isAdmin.set(user.isAdmin);
+      this.fetchPokemon(user._id);
+      this.fetchUserScores(user._id);
+    }
+  }
+  
+  // ============= POKEMON CRUD =============
+  
+  fetchPokemon(userId: string) {
+    this.http.get<Pokemon[]>(`${this.apiUrl}/pokemon/${userId}`).subscribe({
       next: (data) => {
         this.pokemonList.set(data);
         this.serverError.set(null);
@@ -58,7 +111,15 @@ export class PokemonService {
     });
   }
   
-  // UPDATE - Edit existing Pokemon (ADD THIS METHOD)
+  savePokemon(pokemon: Omit<Pokemon, '_id'>) {
+    return this.http.post<Pokemon>(`${this.apiUrl}/pokemon`, pokemon).pipe(
+      catchError((error: HttpErrorResponse) => {
+        console.error('Save error:', error);
+        return throwError(() => new Error('Failed to save Pokemon.'));
+      })
+    );
+  }
+  
   updatePokemon(id: string, pokemon: Partial<Pokemon>) {
     return this.http.put<Pokemon>(`${this.apiUrl}/pokemon/${id}`, pokemon).pipe(
       catchError((error: HttpErrorResponse) => {
@@ -68,7 +129,6 @@ export class PokemonService {
     );
   }
   
-  // DELETE - Remove Pokemon
   deletePokemon(id: string) {
     return this.http.delete(`${this.apiUrl}/pokemon/${id}`).pipe(
       catchError((error: HttpErrorResponse) => {
@@ -78,7 +138,8 @@ export class PokemonService {
     );
   }
   
-  // Score methods
+  // ============= SCORE METHODS =============
+  
   saveScore(score: Omit<Score, '_id' | 'date'>) {
     return this.http.post<Score>(`${this.apiUrl}/scores`, score).pipe(
       catchError((error: HttpErrorResponse) => {
@@ -101,16 +162,34 @@ export class PokemonService {
     });
   }
   
-  setPlayerName(name: string) {
-    this.playerName.set(name);
-    localStorage.setItem('playerName', name);
+  fetchUserScores(userId: string) {
+    this.http.get<Score[]>(`${this.apiUrl}/scores/user/${userId}`).subscribe({
+      next: (data) => {
+        this.userScores.set(data);
+      },
+      error: (err) => {
+        console.error('Failed to fetch user scores:', err);
+      }
+    });
   }
   
-  loadPlayerName() {
-    const saved = localStorage.getItem('playerName');
-    if (saved) {
-      this.playerName.set(saved);
-    }
+  // Admin methods for scores
+  deleteScore(id: string) {
+    return this.http.delete(`${this.apiUrl}/scores/${id}`).pipe(
+      catchError((error: HttpErrorResponse) => {
+        console.error('Delete score error:', error);
+        return throwError(() => new Error('Failed to delete score.'));
+      })
+    );
+  }
+  
+  updateScore(id: string, scoreData: Partial<Score>) {
+    return this.http.put<Score>(`${this.apiUrl}/scores/${id}`, scoreData).pipe(
+      catchError((error: HttpErrorResponse) => {
+        console.error('Update score error:', error);
+        return throwError(() => new Error('Failed to update score.'));
+      })
+    );
   }
   
   checkServerConnection(): Promise<boolean> {
