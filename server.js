@@ -1,4 +1,4 @@
-// server.js
+
 require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
@@ -8,24 +8,20 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// SIMPLE CONNECTION - Same as your working version
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB connected successfully'))
   .catch(err => console.error('❌ MongoDB connection error:', err));
 
-// ============= SCHEMAS =============
-
-// Original Pokemon Schema (keep as is)
 const pokemonSchema = new mongoose.Schema({
   name: String,
   type: String,
   level: Number,
   nature: String,
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Add this for user association
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   caughtAt: { type: Date, default: Date.now }
 });
 
-// User Schema (new)
+
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
@@ -33,7 +29,7 @@ const userSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// Score Schema (new)
+
 const scoreSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   username: String,
@@ -47,7 +43,7 @@ const Pokemon = mongoose.model('Pokemon', pokemonSchema);
 const User = mongoose.model('User', userSchema);
 const Score = mongoose.model('Score', scoreSchema);
 
-// ============= ORIGINAL POKEMON ROUTES (Keep working) =============
+//this is for pokemon routes
 
 app.get('/api/pokemon', async (req, res) => {
   try {
@@ -100,7 +96,7 @@ app.put('/api/pokemon/:id', async (req, res) => {
   }
 });
 
-// ============= NEW USER AUTH ROUTES =============
+// for user auth
 
 app.post('/api/register', async (req, res) => {
   console.log('📝 Registration:', req.body.username);
@@ -160,7 +156,7 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-// ============= SCORE ROUTES =============
+// for scoring
 
 app.post('/api/scores', async (req, res) => {
   try {
@@ -209,12 +205,11 @@ app.delete('/api/scores/:id', async (req, res) => {
   }
 });
 
-// ============= TEST ROUTE =============
 app.get('/api/test', (req, res) => {
   res.json({ message: 'Server is running!', timestamp: new Date() });
 });
 
-// ============= CREATE ADMIN USER =============
+// ADMIN ADMIN
 async function createAdminIfNotExists() {
   try {
     const adminExists = await User.findOne({ isAdmin: true });
@@ -228,23 +223,20 @@ async function createAdminIfNotExists() {
   }
 }
 
-// Wait for connection then create admin
+
 mongoose.connection.once('connected', () => {
   createAdminIfNotExists();
 });
 
-// ============= START SERVER =============
+// npx nodemon server.js
 app.listen(3000, () => {
   console.log(`
-╔══════════════════════════════════════════════════════╗
-║     🚀 SERVER RUNNING ON PORT 3000                  ║
-╠══════════════════════════════════════════════════════╣
-║  http://localhost:3000                              ║
-║                                                     ║
-║  Test: http://localhost:3000/api/test              ║
-║  Pokemon: http://localhost:3000/api/pokemon        ║
-║  Users: http://localhost:3000/api/users            ║
-║  Scores: http://localhost:3000/api/scores          ║
-╚══════════════════════════════════════════════════════╝
+
+SERVER RUNNING ON PORT 3000               
+  http://localhost:3000                                                               
+  Test: http://localhost:3000/api/test              
+  Pokemon: http://localhost:3000/api/pokemon        
+  Users: http://localhost:3000/api/users            
+  Scores: http://localhost:3000/api/scores         
   `);
 });

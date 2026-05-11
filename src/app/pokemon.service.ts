@@ -96,7 +96,7 @@ export class PokemonService {
     }
   }
   
-  // ============= POKEMON CRUD =============
+  // our CRUD functionality 
   
   fetchPokemon(userId: string) {
     this.http.get<Pokemon[]>(`${this.apiUrl}/pokemon/${userId}`).subscribe({
@@ -138,7 +138,7 @@ export class PokemonService {
     );
   }
   
-  // ============= SCORE METHODS =============
+  // SCORE
   
   saveScore(score: Omit<Score, '_id' | 'date'>) {
     return this.http.post<Score>(`${this.apiUrl}/scores`, score).pipe(
@@ -173,7 +173,6 @@ export class PokemonService {
     });
   }
   
-  // Admin methods for scores
   deleteScore(id: string) {
     return this.http.delete(`${this.apiUrl}/scores/${id}`).pipe(
       catchError((error: HttpErrorResponse) => {

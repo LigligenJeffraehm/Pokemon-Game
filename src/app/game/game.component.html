@@ -66,7 +66,7 @@
         </div>
       </div>
       
-      <!-- Game Area -->
+      <!-- game -->
       <div class="game-area">
         <div class="running-track"></div>
         
@@ -107,7 +107,7 @@
         <div class="levelup-message">{{ levelUpMessage() }}</div>
       }
       
-      <!-- Team Queue Display -->
+      <!-- disp0lay of team queue -->
       @if (pokemonQueue().length > 1) {
         <div class="team-queue">
           <h3>YOUR POKEMON TEAM</h3>
@@ -155,7 +155,7 @@
         </div>
       </div>
       
-      <!-- Game Controls -->
+
 
       
       <!-- Game Over -->
@@ -211,7 +211,7 @@
         </div>
       }
       
-      <!-- Catch Pokemon Modal -->
+      <!-- ctahc pokemon -->
       @if (showCatchPrompt() && wildPokemon()) {
         <div class="modal-overlay">
           <div class="pokedex-container">
@@ -232,7 +232,7 @@
         </div>
       }
       
-      <!-- Name Input Modal -->
+      <!-- catch pokemon what pokemon-->
       @if (catchTimer && catchInProgress() && wildPokemon()) {
         <div class="modal-overlay">
           <div class="pokedex-container">
@@ -259,7 +259,7 @@
     </div>
   }
   
-  <!-- Admin Panel -->
+  <!--admin-->
   @if (!showLogin() && pokemonService.isAdmin()) {
     <div class="pokedex-container">
       <h2>👑 ADMIN DASHBOARD</h2>
@@ -301,7 +301,7 @@
       </div>
       
       <div class="admin-info">
-        <h3>ℹ️ ADMIN INFORMATION</h3>
+        <h3>ℹ️ ADMIN Rights</h3>
         <p>As an administrator, you have the following privileges:</p>
         <ul>
           <li>✅ View all user scores on the leaderboard</li>

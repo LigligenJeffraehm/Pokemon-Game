@@ -44,7 +44,7 @@ export class GameComponent implements OnInit, OnDestroy {
   private http = inject(HttpClient);
   pokemonService = inject(PokemonService);
   
-  // ============= LOGIN STATE =============
+  // logine
   showLogin = signal(true);
   loginUsername = signal('');
   loginPassword = signal('');
@@ -54,29 +54,28 @@ export class GameComponent implements OnInit, OnDestroy {
   isRegistering = signal(false);
   showHowToPlay = signal(false);
   
-  // ============= CRUD STATE =============
+  //Crud
   editingPokemonId = signal<string | null>(null);
   editForm = signal({ name: '', type: '', level: 0, nature: '' });
   showAddForm = signal(false);
   newPokemonForm = signal({ name: '', type: '', level: 5, nature: '' });
   
-  // Admin score management
+  // admin score
   editingScoreId = signal<string | null>(null);
   editScoreForm = signal({ score: 0, level: 0, pokemonCaught: 0 });
   
-  // UI State
   showNameInput = signal(false);
   showHighScores = signal(false);
   tempPlayerName = signal('');
   
-  // Game state
+
   gameRunning = signal(false);
   gameLoop: any;
   currentScore = signal(0);
   currentLevel = signal(1);
   pokemonCaughtCount = signal(0);
   
-  // 3 Rows
+  // 3 Rows for Pokemon run
   rows = [0, 1, 2];
   activePokemon = signal<GamePokemon | null>(null);
   pokemonRow = signal(1);
@@ -90,16 +89,15 @@ export class GameComponent implements OnInit, OnDestroy {
   obstacleSpawnRate = 70;
   frameCount = 0;
   
-  // Animation
   animationFrame = signal(0);
   animationInterval: any;
   isRunning = signal(false);
   
-  // Row switching
+  // pokemon row switch
   canSwitchRow = signal(true);
   switchCooldown = 250;
   
-  // Catch mechanics
+  //catch
   showCatchPrompt = signal(false);
   wildPokemon = signal<WildPokemon | null>(null);
   catchTimer: any;
@@ -109,12 +107,12 @@ export class GameComponent implements OnInit, OnDestroy {
   gameOver = signal(false);
   isLoadingPokemon = signal(false);
   
-  // Messages
+
   deathMessage = signal('');
   switchMessage = signal('');
   levelUpMessage = signal('');
   
-  // Running animation frames
+
   runningFrames: { [key: string]: string[] } = {
     'Pikachu': ['⚡', '⚡💨', '⚡', '⚡💨'],
     'Charmander': ['🔥', '🔥💨', '🔥', '🔥💨'],
@@ -136,7 +134,7 @@ export class GameComponent implements OnInit, OnDestroy {
   ];
   
   ngOnInit() {
-    // Check if user is already logged in from localStorage
+    //check if user is already logged in
     const storedUser = localStorage.getItem('currentUser');
     if (storedUser) {
       const user = JSON.parse(storedUser);
@@ -153,7 +151,7 @@ export class GameComponent implements OnInit, OnDestroy {
     this.startAnimationLoop();
   }
   
-  // ============= LOGIN METHODS =============
+  // login
   openHowToPlay() {
   this.showHowToPlay.set(true);
 }
@@ -310,7 +308,7 @@ resetAndClear() {
     }
   }
   
-  // ============= GAME METHODS =============
+  //game
   
   startGameWithName() {
     if (!this.tempPlayerName() || this.tempPlayerName().trim() === '') {
@@ -385,7 +383,7 @@ resetAndClear() {
     return icons[pokemonName] || '🐾';
   }
   
-  // ============= CRUD METHODS =============
+  //CRUD method
   
   showAddPokemonForm() {
     this.newPokemonForm.set({ name: '', type: '', level: 5, nature: '' });
@@ -540,7 +538,7 @@ resetAndClear() {
     }
   }
   
-  // ============= RUNNING & MOVEMENT =============
+  //running
   
   getCurrentAnimationFrame(): string {
     const pokemon = this.activePokemon();
