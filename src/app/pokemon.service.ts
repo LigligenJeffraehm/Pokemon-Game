@@ -34,7 +34,7 @@ export interface Score {
 })
 export class PokemonService {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:3000/api';
+  private apiUrl = 'https://pokemon-game-w62z.onrender.com';
   
   // User state
   currentUser = signal<User | null>(null);
